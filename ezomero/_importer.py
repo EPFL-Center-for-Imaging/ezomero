@@ -2,6 +2,7 @@ import logging
 import tempfile
 import yaml
 from typing import Optional, Union, List
+import os
 from os.path import abspath
 from omero.gateway import MapAnnotationWrapper, BlitzGateway
 from ._gets import get_image_ids
@@ -441,7 +442,10 @@ class Importer:
         cli = CLI()
         cli.register('import', ImportControl, '_')
         cli.register('sessions', SessionsControl, '_')
-        stdout_file = tempfile.NamedTemporaryFile(mode="r")
+
+        stdout_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
+        stdout_file.close()
+
         arguments = ['import',
                      '-k', self.conn.getSession().getUuid().val,
                      '-s', self.conn.host,
@@ -457,7 +461,11 @@ class Importer:
         arguments.extend(['--file', stdout_file.name, '--output', 'yaml'])
         arguments.append(str(self.file_path))
         cli.invoke(arguments)
-        self.import_result = yaml.safe_load(stdout_file)
+
+        with open(stdout_file.name) as f:
+            self.import_result = yaml.safe_load(f)
+        os.unlink(stdout_file.name)
+        
         stdout_file.close()
         if self.import_result:
             self.imported = True
